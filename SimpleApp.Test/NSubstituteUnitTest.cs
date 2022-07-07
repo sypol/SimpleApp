@@ -1,23 +1,21 @@
-using Moq;
 using FluentAssertions;
-using SimpleApp.Interfaces;
 using SimpleApp.Data.Entities;
 using SimpleApp.Data.Repositories;
 using SimpleApp.Data;
+using NSubstitute;
 using Microsoft.EntityFrameworkCore;
 
 namespace SimpleApp.Test
 {
-    public class Tests
+    public class NSubstituteUnitTest
     {
         private static readonly string[] Summaries = new[]
         {
             "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
         };
 
-        private Mock<AppDbContext> _appDbContext;
-        private Mock<DbSet<WeatherForecast>> _mockSet;
         private WeatherForecastRepository _weatherForecastRepository;
+        private AppDbContext _appDbContext;
 
         [SetUp]
         public void Setup()
@@ -47,16 +45,16 @@ namespace SimpleApp.Test
                     }
                 }.AsQueryable();
 
-            _mockSet = new Mock<DbSet<WeatherForecast>>();
-            _mockSet.As<IQueryable<WeatherForecast>>().Setup(m => m.Provider).Returns(queryableList.Provider);
-            _mockSet.As<IQueryable<WeatherForecast>>().Setup(m => m.Expression).Returns(queryableList.Expression);
-            _mockSet.As<IQueryable<WeatherForecast>>().Setup(m => m.ElementType).Returns(queryableList.ElementType);
-            _mockSet.As<IQueryable<WeatherForecast>>().Setup(m => m.GetEnumerator()).Returns(queryableList.GetEnumerator());
+            var mockSet = Substitute.For<DbSet<WeatherForecast>, IQueryable<WeatherForecast>>();
+            ((IQueryable<WeatherForecast>)mockSet).Provider.Returns(queryableList.Provider);
+            ((IQueryable<WeatherForecast>)mockSet).Expression.Returns(queryableList.Expression);
+            ((IQueryable<WeatherForecast>)mockSet).ElementType.Returns(queryableList.ElementType);
+            ((IQueryable<WeatherForecast>)mockSet).GetEnumerator().Returns(queryableList.GetEnumerator());
 
-            _appDbContext = new Mock<AppDbContext>();
-            _appDbContext.Setup(x => x.WeatherForecast).Returns(_mockSet.Object);
+            _appDbContext = Substitute.For<AppDbContext>();
+            _appDbContext.WeatherForecast.Returns(mockSet);
 
-            _weatherForecastRepository = new WeatherForecastRepository(_appDbContext.Object);
+            _weatherForecastRepository = new WeatherForecastRepository(_appDbContext);
         }
 
         [Test]
@@ -97,7 +95,7 @@ namespace SimpleApp.Test
         [Test]
         public void InsertOrUpdate_UpdateSuccess()
         {
-            _weatherForecastRepository.InsertOrUpdate(new WeatherForecast()
+            var result = _weatherForecastRepository.InsertOrUpdate(new WeatherForecast()
             {
                 Id = 2,
                 Date = new DateTime(2022, 7, 3),
@@ -105,23 +103,22 @@ namespace SimpleApp.Test
                 Summary = String.Empty
             });
 
-            _mockSet.Verify(m => m.Update(It.IsAny<WeatherForecast>()), Times.Once());
-            _mockSet.Verify(m => m.Add(It.IsAny<WeatherForecast>()), Times.Never());
-            _appDbContext.Verify(x => x.SaveChanges(), Times.Once());
+            result.Id.Should().Be(2);
+            _appDbContext.Received(1).SaveChanges();
         }
 
         [Test]
         public void InsertOrUpdate_InsertSuccess()
         {
-            _weatherForecastRepository.InsertOrUpdate(new WeatherForecast()
+            var result = _weatherForecastRepository.InsertOrUpdate(new WeatherForecast()
             {
                 Date = new DateTime(2022, 7, 10),
                 TemperatureC = 20,
                 Summary = String.Empty
             });
 
-            _mockSet.Verify(m => m.Add(It.IsAny<WeatherForecast>()), Times.Once());
-            _appDbContext.Verify(x => x.SaveChanges(), Times.Once());
+            result.Date.Day.Should().Be(10);
+            _appDbContext.Received(1).SaveChanges();
         }
 
         [Test]
