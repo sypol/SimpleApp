@@ -13,6 +13,7 @@ namespace SimpleApp.Test
         {
             "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
         };
+        private static readonly string DateFormat = "dd.MM.yyyy";
 
         private WeatherForecastRepository _weatherForecastRepository;
         private AppDbContext _appDbContext;
@@ -57,22 +58,26 @@ namespace SimpleApp.Test
             _weatherForecastRepository = new WeatherForecastRepository(_appDbContext);
         }
 
-        [Test]
-        public void GetByDate_ReturnNull()
+        [TestCase(2022, 7, 1)]
+        [TestCase(2020, 7, 1)]
+        [TestCase(2023, 8, 2)]
+        public void Get_DateNotExist_ReturnNull(int year, int month, int day)
         {
-            var result = _weatherForecastRepository.Get(new DateTime(2022, 7, 1));
+            var result = _weatherForecastRepository.Get(new DateTime(year, month, day));
             result.Should().BeNull();
         }
 
-        [Test]
-        public void GetByDate_ReturnSuccess()
+        [TestCase(2022, 7, 2)]
+        [TestCase(2022, 7, 3)]
+        [TestCase(2022, 7, 4)]
+        public void Get_DateExist_ReturnObject(int year, int month, int day)
         {
-            var result = _weatherForecastRepository.Get(new DateTime(2022, 7, 2));
-            result?.Id.Should().Be(1);
+            var result = _weatherForecastRepository.Get(new DateTime(year, month, day));
+            result.Should().NotBeNull();
         }
 
         [Test]
-        public void GetByDates_ReturnSet()
+        public void Get_DateRange_ReturnSet()
         {
             var result = _weatherForecastRepository.Get(new DateTime(2022, 7, 3), new DateTime(2022, 7, 4));
             result.Count().Should().Be(2);
@@ -80,7 +85,7 @@ namespace SimpleApp.Test
         }
 
         [Test]
-        public void InsertOrUpdate_UpdateReturnException()
+        public void InsertOrUpdate_ObjectTemperatureIsInvalid_ReturnException()
         {            
             Assert.That(() => _weatherForecastRepository.InsertOrUpdate(new WeatherForecast()
             {
@@ -93,7 +98,7 @@ namespace SimpleApp.Test
         }
 
         [Test]
-        public void InsertOrUpdate_UpdateSuccess()
+        public void InsertOrUpdate_ObjectIsValid_UpdateSuccess()
         {
             var result = _weatherForecastRepository.InsertOrUpdate(new WeatherForecast()
             {
@@ -108,7 +113,7 @@ namespace SimpleApp.Test
         }
 
         [Test]
-        public void InsertOrUpdate_InsertSuccess()
+        public void InsertOrUpdate_ObjectIsValid_InsertSuccess()
         {
             var result = _weatherForecastRepository.InsertOrUpdate(new WeatherForecast()
             {
@@ -121,11 +126,14 @@ namespace SimpleApp.Test
             _appDbContext.Received(1).SaveChanges();
         }
 
-        [Test]
-        public void AverageTemperature_Success() 
-        { 
-            var result = _weatherForecastRepository.AverageTemperature(new DateTime(2022, 7, 3), new DateTime(2022, 7, 4));
-            result.Should().Be(33.5); 
+        [TestCase("03.07.2022", "04.07.2022")]
+        [TestCase("02.07.2022", "04.07.2022")]
+        public void AverageTemperature_DatesAreValid_ReturnMoreThan30(string dateFromString, string dateToString) 
+        {
+            var dateFrom = DateTime.ParseExact(dateFromString, DateFormat, null);
+            var dateTo = DateTime.ParseExact(dateToString, DateFormat, null);
+            var result = _weatherForecastRepository.AverageTemperature(dateFrom, dateTo);
+            
             result.Should().BeGreaterThan(30);
         }
     }
