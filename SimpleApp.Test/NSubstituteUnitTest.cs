@@ -4,6 +4,7 @@ using SimpleApp.Data.Repositories;
 using SimpleApp.Data;
 using NSubstitute;
 using Microsoft.EntityFrameworkCore;
+using SimpleApp.Test.Helpers;
 
 namespace SimpleApp.Test
 {
@@ -15,8 +16,9 @@ namespace SimpleApp.Test
         };
         private static readonly string DateFormat = "dd.MM.yyyy";
 
-        private WeatherForecastRepository _weatherForecastRepository;
+        private WeatherForecastRepository _sut;
         private AppDbContext _appDbContext;
+        private DateTimeProvider _dateTimeProvider;
 
         [SetUp]
         public void Setup()
@@ -55,39 +57,49 @@ namespace SimpleApp.Test
             _appDbContext = Substitute.For<AppDbContext>();
             _appDbContext.WeatherForecast.Returns(mockSet);
 
-            _weatherForecastRepository = new WeatherForecastRepository(_appDbContext);
+            _sut = new WeatherForecastRepository(_appDbContext);
+
+            _dateTimeProvider = Substitute.For<DateTimeProvider>();
+            _dateTimeProvider.Today.Returns(new DateTime(2022, 7, 3));
         }
 
         [TestCase(2022, 7, 1)]
         [TestCase(2020, 7, 1)]
         [TestCase(2023, 8, 2)]
-        public void Get_DateNotExist_ReturnNull(int year, int month, int day)
+        public void Return_null_when_date_not_exist_on_the_list(int year, int month, int day)
         {
-            var result = _weatherForecastRepository.Get(new DateTime(year, month, day));
+            var result = _sut.Get(new DateTime(year, month, day));
             result.Should().BeNull();
         }
 
         [TestCase(2022, 7, 2)]
         [TestCase(2022, 7, 3)]
         [TestCase(2022, 7, 4)]
-        public void Get_DateExist_ReturnObject(int year, int month, int day)
+        public void Return_a_weather_forecast_for_date(int year, int month, int day)
         {
-            var result = _weatherForecastRepository.Get(new DateTime(year, month, day));
+            var result = _sut.Get(new DateTime(year, month, day));
             result.Should().NotBeNull();
         }
 
         [Test]
-        public void Get_DateRange_ReturnSet()
+        public void Return_a_weather_forecast_for_today() 
         {
-            var result = _weatherForecastRepository.Get(new DateTime(2022, 7, 3), new DateTime(2022, 7, 4));
+            var result = _sut.Get(_dateTimeProvider.Today);
+            result.Should().NotBeNull();
+        }
+
+        [Test]
+        public void Return_weather_forecasts_list_for_date_range()
+        {
+            var result = _sut.Get(new DateTime(2022, 7, 3), new DateTime(2022, 7, 4));
             result.Count().Should().Be(2);
             result.Any(x => x.Id == 2).Should().BeTrue();
         }
 
         [Test]
-        public void InsertOrUpdate_ObjectTemperatureIsInvalid_ReturnException()
+        public void Update_fails_when_temperature_is_invalid()
         {            
-            Assert.That(() => _weatherForecastRepository.InsertOrUpdate(new WeatherForecast()
+            Assert.That(() => _sut.InsertOrUpdate(new WeatherForecast()
             {
                 Id = 5,
                 Date = new DateTime(2022, 7, 3),
@@ -98,9 +110,9 @@ namespace SimpleApp.Test
         }
 
         [Test]
-        public void InsertOrUpdate_ObjectIsValid_UpdateSuccess()
+        public void Update_succeeds_when_weather_forecast_is_valid()
         {
-            var result = _weatherForecastRepository.InsertOrUpdate(new WeatherForecast()
+            var result = _sut.InsertOrUpdate(new WeatherForecast()
             {
                 Id = 2,
                 Date = new DateTime(2022, 7, 3),
@@ -113,9 +125,9 @@ namespace SimpleApp.Test
         }
 
         [Test]
-        public void InsertOrUpdate_ObjectIsValid_InsertSuccess()
+        public void Insert_succeeds_when_weather_forecast_is_valid()
         {
-            var result = _weatherForecastRepository.InsertOrUpdate(new WeatherForecast()
+            var result = _sut.InsertOrUpdate(new WeatherForecast()
             {
                 Date = new DateTime(2022, 7, 10),
                 TemperatureC = 20,
@@ -128,13 +140,14 @@ namespace SimpleApp.Test
 
         [TestCase("03.07.2022", "04.07.2022")]
         [TestCase("02.07.2022", "04.07.2022")]
-        public void AverageTemperature_DatesAreValid_ReturnMoreThan30(string dateFromString, string dateToString) 
+        public void Return_average_temperature_for_date_range(string dateFromString, string dateToString) 
         {
             var dateFrom = DateTime.ParseExact(dateFromString, DateFormat, null);
             var dateTo = DateTime.ParseExact(dateToString, DateFormat, null);
-            var result = _weatherForecastRepository.AverageTemperature(dateFrom, dateTo);
-            
-            result.Should().BeGreaterThan(30);
+            var result = _sut.AverageTemperature(dateFrom, dateTo);
+
+            result.Should().BeOfType(typeof(double));
+            result.Should().BePositive();
         }
     }
 }
