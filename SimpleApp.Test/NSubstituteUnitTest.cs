@@ -5,6 +5,7 @@ using SimpleApp.Data;
 using NSubstitute;
 using Microsoft.EntityFrameworkCore;
 using SimpleApp.Test.Helpers;
+using SimpleApp.Test.Helpers.Interfaces;
 
 namespace SimpleApp.Test
 {
@@ -18,7 +19,7 @@ namespace SimpleApp.Test
 
         private WeatherForecastRepository _sut;
         private AppDbContext _appDbContext;
-        private DateTimeProvider _dateTimeProvider;
+        private IDateTimeProvider _dateTimeProvider;
 
         [SetUp]
         public void Setup()
@@ -59,8 +60,8 @@ namespace SimpleApp.Test
 
             _sut = new WeatherForecastRepository(_appDbContext);
 
-            _dateTimeProvider = Substitute.For<DateTimeProvider>();
-            _dateTimeProvider.Today.Returns(new DateTime(2022, 7, 3));
+            _dateTimeProvider = Substitute.For<IDateTimeProvider>();
+            _dateTimeProvider.GetToday().Returns(new DateTime(2022, 7, 3));
         }
 
         [TestCase(2022, 7, 1)]
@@ -84,7 +85,7 @@ namespace SimpleApp.Test
         [Test]
         public void Return_a_weather_forecast_for_today() 
         {
-            var result = _sut.Get(_dateTimeProvider.Today);
+            var result = _sut.Get(_dateTimeProvider.GetToday());
             result.Should().NotBeNull();
         }
 

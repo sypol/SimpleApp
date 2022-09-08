@@ -1,9 +1,11 @@
-﻿namespace SimpleApp.Test.Helpers
-{
-    public class DateTimeProvider
-    {
-        virtual public DateTime Now { get; } = DateTime.Now;
+﻿using SimpleApp.Test.Helpers.Interfaces;
 
-        virtual public DateTime Today { get; } = DateTime.Today;
+namespace SimpleApp.Test.Helpers
+{
+    public class DateTimeProvider : IDateTimeProvider
+    {
+        public DateTime GetNow() => DateTime.Now;
+
+        public DateTime GetToday() => DateTime.Today;
     }
 }
